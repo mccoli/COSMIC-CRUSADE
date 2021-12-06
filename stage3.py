@@ -5,6 +5,7 @@ pygame.init()
 # screen window
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = int(SCREEN_WIDTH * 0.8)
+divider = SCREEN_HEIGHT / 2
 
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption('stage3')
@@ -15,23 +16,26 @@ FPS = 60
 
 # define colours
 BG = (28, 8, 89)
+RED = (255, 0, 0)
 
 # draw background
 def draw_bg():
     screen.fill(BG)
+    pygame.draw.line(screen, RED, (0, divider), (SCREEN_WIDTH, divider))
 
 # load images
-bullet_img = pygame.image.load(img/objects/bullet.png).convert_alpha()
+laser_img = pygame.image.load('img/objects/laser.png').convert_alpha()
 
 # player actions
 moving_down = False
 moving_up = False
 moving_left = False
 moving_right = False
+shoot = False
 
-class spaceship(pygame.sprite.Sprite):
+class Spaceship(pygame.sprite.Sprite):
     def __init__(self, character, x, y, scale, v_speed, h_speed):
-        # initialise the dprite
+        # initialise the sprite
         pygame.sprite.Sprite.__init__(self)
         self.character = character
 
@@ -40,7 +44,7 @@ class spaceship(pygame.sprite.Sprite):
         self.h_speed = h_speed
 
         # load image and place in bounding box
-        img = pygame.image.load(f'characters/{self.character}/ship.png').convert_alpha()
+        img = pygame.image.load(f'img/characters/{self.character}/ship.png').convert_alpha()
         self.image = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
@@ -64,11 +68,40 @@ class spaceship(pygame.sprite.Sprite):
         self.rect.x += dx
         self.rect.y += dy
 
+        # check collision
+        if self.rect.bottom + dy > divider:
+            self.rect.bottom = divider - dy
+        if self.rect.left < 0:
+            self.rect.left = 0
+
+
     def draw(self):
         screen.blit(pygame.transform.rotate(self.image, -90), self.rect)
 
-player1 = spaceship('player', 200, 200, 0.15, 7, 7)
-enemy = spaceship('enemy', 400, 200, 0.1, 7, 7)
+    def shoot(self):
+        laser = Laser(self.rect.right - 20, self.rect.centery)
+        laser_group.add(laser)
+
+class Laser(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        pygame.sprite.Sprite.__init__(self)
+        self.speed = 10
+        self.image = laser_img
+        self.rect = self.image.get_rect()
+        self.rect.center = (x, y)
+
+    def update(self):
+        # move laser
+        self.rect.x += self.speed
+        # delete if off screen
+        if self.rect.right > SCREEN_WIDTH:
+            self.kill()
+
+# create sprite groups
+laser_group = pygame.sprite.Group()
+
+player1 = Spaceship('player', 200, 200, 0.15, 7, 7)
+enemy = Spaceship('enemy', 400, 200, 0.1, 7, 7)
 
 running = True
 
@@ -81,6 +114,14 @@ while running:
     player1.move(moving_down, moving_up, moving_left, moving_right)
 
     enemy.draw()
+
+    # update and draw groups
+    laser_group.update()
+    laser_group.draw(screen)
+
+    if shoot:
+        player1.shoot()
+        # TODO: enemy.shoot() direction needs to be left not right
 
     for event in pygame.event.get():
         # quit pygame
@@ -97,6 +138,8 @@ while running:
                 moving_left = True
             if event.key == pygame.K_RIGHT:
                 moving_right = True
+            if event.key == pygame.K_l:
+                shoot = True
             if event.key == pygame.K_ESCAPE:
                 running = False
 
@@ -110,6 +153,8 @@ while running:
                 moving_left = False
             if event.key == pygame.K_RIGHT:
                 moving_right = False
+            if event.key == pygame.K_l:
+                shoot = False
 
     pygame.display.update()
 
