@@ -17,6 +17,18 @@ FPS = 60
 # define colours
 BG = (28, 8, 89)
 RED = (255, 0, 0)
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+GREEN = (0, 255, 0)
+
+# define font
+# TODO: install appropriate font
+font = pygame.font.SysFont('Futura', 30)
+
+# draw text
+def draw_text(text, font, text_colour, x, y):
+    img = font.render(text, True, text_colour)
+    screen.blit(img, (x, y))
 
 # draw background
 def draw_bg():
@@ -24,8 +36,19 @@ def draw_bg():
     pygame.draw.line(screen, RED, (0, divider), (SCREEN_WIDTH, divider))
 
 # load images
+# laser
 laser_img = pygame.image.load('img/objects/laser.png').convert_alpha()
+# missile
 missile_img = pygame.image.load('img/objects/missile.png').convert_alpha()
+# pick up orbs
+health_orb_img = pygame.image.load('img/objects/health_orb.png').convert_alpha()
+powerup_orb_img = pygame.image.load('img/objects/powerup_orb.png').convert_alpha()
+missile_orb_img = pygame.image.load('img/objects/missile_orb.png').convert_alpha()
+item_orbs = {
+    'Health'    : health_orb_img,
+    'Powerup'   : powerup_orb_img,
+    'Missile'   : missile_orb_img,
+}
 
 # player actions
 moving_down = False
@@ -42,10 +65,12 @@ class Spaceship(pygame.sprite.Sprite):
         # initialise the sprite
         pygame.sprite.Sprite.__init__(self)
         self.character = character
+        self.alive = True
 
         # set vertical and horizontal speeds
         self.v_speed = v_speed
         self.h_speed = h_speed
+        self.direction = 1
 
         self.shoot_cooldown = 0
         self.missiles = missiles
@@ -53,6 +78,9 @@ class Spaceship(pygame.sprite.Sprite):
 
         # for health bar
         self.max_health = self.health
+
+        # ai specific variables
+        #self.move_vertical = 0
 
         # load image and place in bounding box
         img = pygame.image.load(f'img/characters/{self.character}/ship.png').convert_alpha()
@@ -96,16 +124,77 @@ class Spaceship(pygame.sprite.Sprite):
         if self.health <= 0:
             self.health = 0
             self.speed = 0
-            #self.alive = False
+            self.alive = False
 
     def draw(self):
         screen.blit(pygame.transform.rotate(self.image, -90), self.rect)
+        # show rects
+        pygame.draw.rect(screen, RED, self.rect, 1)
 
     def shoot(self):
         if self.shoot_cooldown == 0:
             self.shoot_cooldown = 20
             laser = Laser(self.rect.right + 3, self.rect.centery)
             laser_group.add(laser)
+
+    # ! TODO - logical error
+    def ai(self):
+        if self.alive and player1.alive:
+            ai_moving_left = True
+            ai_moving_right = False
+
+            if self.direction == 1:
+                ai_moving_up = True
+            else:
+                ai_moving_up = False
+            ai_moving_down = not ai_moving_up
+
+            if self.rect.top < 0:
+                self.direction *= -1
+                print(self.direction)
+
+            self.move(ai_moving_down, ai_moving_up, ai_moving_left, ai_moving_right)
+            #self.move_vertical += 1
+
+class ItemOrb(pygame.sprite.Sprite):
+    def __init__(self, item_type, x, y):
+        pygame.sprite.Sprite.__init__(self)
+        self.item_type = item_type
+        self.image = item_orbs[self.item_type]
+        self.rect = self.image.get_rect()
+        self.rect.center = (x, y)
+
+    def update(self):
+        # check if player has picked up orb
+        if pygame.sprite.collide_rect(self, player1):
+            # check orb type
+            if self.item_type == 'Health':
+                player1.health += 25
+                if player1.health > player1.max_health:
+                    player1.health = player1.max_health
+            elif self.item_type == 'Missile':
+                player1.missiles += 1
+            # elif self.item_type == 'Powerup':
+            #     player1.powers
+
+            # delete item_orb
+            self.kill()
+
+class HealthBar():
+    def __init__(self, x, y, health, max_health):
+        self.x = x
+        self.y = y
+        self.health = health
+        self.max_health = max_health
+
+    def draw(self, health):
+        # update with new health
+        self.health = health
+        # calculate health ratio
+        ratio = self.health / self.max_health
+        pygame.draw.rect(screen, BLACK, (self.x - 2, self.y - 2, 154, 24))
+        pygame.draw.rect(screen, RED, (self.x, self.y, 150, 20))
+        pygame.draw.rect(screen, GREEN, (self.x, self.y, 150 * ratio, 20))
 
 class Laser(pygame.sprite.Sprite):
     def __init__(self, x, y):
@@ -130,12 +219,13 @@ class Laser(pygame.sprite.Sprite):
             # if player1.alive: TAB
             player1.health -= 5
             self.kill()
-        # TODO: for loop for multiple enemies
-        if pygame.sprite.spritecollide(enemy, laser_group, False):
-            # if enemy.alive: TAB
-            enemy.health -= 25
-            print(enemy.health)
-            self.kill()
+
+        for enemy in enemy_group:
+            if pygame.sprite.spritecollide(enemy, laser_group, False):
+                # if enemy.alive: TAB
+                enemy.health -= 25
+                print(enemy.health)
+                self.kill()
 
 class Missile(pygame.sprite.Sprite):
     def __init__(self, x, y):
@@ -153,12 +243,34 @@ class Missile(pygame.sprite.Sprite):
         if self.rect.right > SCREEN_WIDTH:
             self.kill()
 
+        for enemy in enemy_group:
+            if pygame.sprite.spritecollide(enemy, missile_group, False):
+                # if enemy.alive: TAB
+                enemy.health -= 50
+                print(enemy.health)
+                self.kill()
+
 # create sprite groups
+enemy_group = pygame.sprite.Group()
 laser_group = pygame.sprite.Group()
 missile_group = pygame.sprite.Group()
+item_orb_group = pygame.sprite.Group()
+
+# temp - create item orbs
+item_orb = ItemOrb('Health', 100, 150)
+item_orb_group.add(item_orb)
+item_orb = ItemOrb('Powerup', 150, 250)
+item_orb_group.add(item_orb)
+item_orb = ItemOrb('Missile', 125, 215)
+item_orb_group.add(item_orb)
 
 player1 = Spaceship('player', 200, 200, 0.15, 7, 7, 100, 3)
+health_bar = HealthBar(10, 10, player1.health, player1.health)
+
 enemy = Spaceship('enemy', 400, 200, 0.1, 7, 7, 100, 0)
+enemy2 = Spaceship('enemy', 300, 100, 0.1, 7, 7, 100, 0)
+enemy_group.add(enemy)
+enemy_group.add(enemy2)
 
 running = True
 
@@ -166,28 +278,42 @@ while running:
     clock.tick(FPS)
 
     draw_bg()
+    # show player health
+    health_bar.draw(player1.health)
+    # show missile count
+    draw_text('MISSILES: ', font, WHITE, 10, 35)
+    for x in range(player1.missiles):
+        screen.blit(missile_img, (125 + (x * 40), 40))
+    # TODO: show health as hearts
+    draw_text(f'HEALTH: {player1.health}', font, WHITE, 10, 60)
 
     player1.update()
     player1.draw()
     player1.move(moving_down, moving_up, moving_left, moving_right)
 
-    enemy.draw()
+    for enemy in enemy_group:
+        enemy.ai()
+        enemy.update()
+        enemy.draw()
 
     # update and draw groups
     laser_group.update()
     missile_group.update()
+    item_orb_group.update()
     laser_group.draw(screen)
     missile_group.draw(screen)
+    item_orb_group.draw(screen)
 
-    if shoot:
-        player1.shoot()
-        # TODO: enemy.shoot() direction needs to be left not right
-    elif missile and missile_shot == False and player1.missiles > 0:
-        missile = Missile(player1.rect.centerx + 20, player1.rect.centery)
-        missile_group.add(missile)
-        player1.missiles -= 1
-        missile_shot = True
-        print(player1.missiles)
+    # update player actions
+    if player1.alive:
+        if shoot:
+            player1.shoot()
+        elif missile and missile_shot == False and player1.missiles > 0:
+            missile = Missile(player1.rect.centerx + 20, player1.rect.centery)
+            missile_group.add(missile)
+            player1.missiles -= 1
+            missile_shot = True
+            #print(player1.missiles)
 
     for event in pygame.event.get():
         # quit pygame
@@ -230,8 +356,3 @@ while running:
     pygame.display.update()
 
 pygame.quit()
-
-# def main():
-
-# if __name__ == "__main__":
-    # main()
