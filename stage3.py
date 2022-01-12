@@ -39,7 +39,7 @@ def draw_bg():
 # laser
 laser_img = pygame.image.load('img/objects/laser.png').convert_alpha()
 # missile
-missile_img = pygame.image.load('img/objects/missile.png').convert_alpha()
+missile_img = pygame.image.load('img/missile/missile0.png').convert_alpha()
 # pick up orbs
 health_orb_img = pygame.image.load('img/objects/health_orb.png').convert_alpha()
 powerup_orb_img = pygame.image.load('img/objects/powerup_orb.png').convert_alpha()
@@ -117,6 +117,8 @@ class Spaceship(pygame.sprite.Sprite):
         # check collision
         if self.rect.bottom + dy > divider:
             self.rect.bottom = divider - dy
+        if self.rect.top < 0:
+            self.rect.top = 0
         if self.rect.left < 0:
             self.rect.left = 0
 
@@ -228,16 +230,36 @@ class Laser(pygame.sprite.Sprite):
                 self.kill()
 
 class Missile(pygame.sprite.Sprite):
-    def __init__(self, x, y):
+    def __init__(self, x, y, scale):
         pygame.sprite.Sprite.__init__(self)
         self.speed = 7
-        self.image = missile_img
+        self.images = []
+        for num in range(2):
+            img = pygame.image.load(f'img/missile/missile{num}.png').convert_alpha()
+            img = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
+            self.images.append(img)
+        self.frame_index = 0
+        self.image = self.images[self.frame_index]
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
+        self.counter = 0
 
     def update(self):
         # move missile
         self.rect.x += self.speed
+
+        # run animation
+        animation_speed = 6
+        self.counter += 1
+
+        if self.counter >= animation_speed:
+            self.counter = 0
+            self.frame_index += 1
+
+            if self.frame_index >= len(self.images):
+                self.frame_index = 0
+
+        self.image = self.images[self.frame_index]
 
         # delete if off screen
         if self.rect.right > SCREEN_WIDTH:
@@ -278,6 +300,8 @@ while running:
     clock.tick(FPS)
 
     draw_bg()
+    # for size reference
+    #pygame.draw.rect(screen, WHITE, (400, 400, 16, 16))
     # show player health
     health_bar.draw(player1.health)
     # show missile count
@@ -292,7 +316,7 @@ while running:
     player1.move(moving_down, moving_up, moving_left, moving_right)
 
     for enemy in enemy_group:
-        enemy.ai()
+        #enemy.ai()
         enemy.update()
         enemy.draw()
 
@@ -309,7 +333,7 @@ while running:
         if shoot:
             player1.shoot()
         elif missile and missile_shot == False and player1.missiles > 0:
-            missile = Missile(player1.rect.centerx + 20, player1.rect.centery)
+            missile = Missile(player1.rect.centerx + 20, player1.rect.centery, 4)
             missile_group.add(missile)
             player1.missiles -= 1
             missile_shot = True
