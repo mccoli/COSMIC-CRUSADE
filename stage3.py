@@ -1,5 +1,7 @@
 import pygame
-# TODO: SPRITE ANIMATION + eoSHOOTING BULLETS
+#import random
+
+# TODO: SPRITE ANIMATION
 pygame.init()
 
 # screen window
@@ -73,6 +75,7 @@ class Spaceship(pygame.sprite.Sprite):
         self.direction = 1
 
         self.shoot_cooldown = 0
+        self.damage_cooldown = 0
         self.missiles = missiles
         self.health = health
 
@@ -92,8 +95,18 @@ class Spaceship(pygame.sprite.Sprite):
         # self.update_animation()
         # TODO: self.update_cooldowns for special powers
         self.check_alive()
+
         if self.shoot_cooldown > 0:
             self.shoot_cooldown -= 1
+
+        if self.damage_cooldown > 0:
+            self.damage_cooldown -= 1
+
+        if pygame.sprite.spritecollide(player1, enemy_group, False):
+            if player1.alive:
+                if self.damage_cooldown == 0:
+                    self.damage_cooldown = 60
+                    player1.health -= 5
 
     def move(self, moving_down, moving_up, moving_left, moving_right):
         # reset movement variables
@@ -139,24 +152,62 @@ class Spaceship(pygame.sprite.Sprite):
             laser = Laser(self.rect.right + 3, self.rect.centery)
             laser_group.add(laser)
 
-    # ! TODO - logical error
+class EnemyShip(Spaceship):
+    def move(self, moving_down, moving_up, moving_left, moving_right):
+        # reset movement variables
+        dy = 0
+        dx = 0
+
+        # assign movement values
+        if moving_down:
+            dy = self.v_speed
+        if moving_up:
+            dy = -self.v_speed
+        if moving_left:
+            dx = -self.h_speed
+        if moving_right:
+            dx = self.h_speed
+
+        # update rectangle position
+        self.rect.x += dx
+        self.rect.y += dy
+
+        # check collision
+        if self.rect.bottom > SCREEN_HEIGHT:
+            self.rect.bottom = SCREEN_HEIGHT
+        if self.rect.top < 0:
+            self.rect.top = 0
+        if self.rect.left < 0:
+            self.kill()
+
+    def shoot(self):
+        if self.shoot_cooldown == 0:
+            self.shoot_cooldown = 20
+            laser = Laser(self.rect.left + 3, self.rect.centery)
+            laser_group.add(laser)
+
+    # TODO
+    # make movement and spawning pos a bit randomised so enemies don't overlap
+    # enemy shooting towards player once they're on similar y-axis
     def ai(self):
-        if self.alive and player1.alive:
-            ai_moving_left = True
-            ai_moving_right = False
+        # movement
+        # find direction vector between enemy and player
+        dir_vector = pygame.math.Vector2(player1.rect.x - self.rect.x,
+                                      player1.rect.y - self.rect.y)
 
-            if self.direction == 1:
-                ai_moving_up = True
-            else:
-                ai_moving_up = False
-            ai_moving_down = not ai_moving_up
+        # gives vector of same direction but of length 1
+        if dir_vector.length_squared() > 0:
+            dir_vector = dir_vector.normalize()
+            dir_vector.scale_to_length(self.h_speed)
 
-            if self.rect.top < 0:
-                self.direction *= -1
-                print(self.direction)
+        self.rect.move_ip(dir_vector)
 
-            self.move(ai_moving_down, ai_moving_up, ai_moving_left, ai_moving_right)
-            #self.move_vertical += 1
+        # ! shooting in wrong direction lol
+        # rotate laser rect based on vector?
+        # change movement to just up and down controls
+        in_range = player1.rect.y - self.rect.y
+        if in_range:
+            self.shoot()
 
 class ItemOrb(pygame.sprite.Sprite):
     def __init__(self, item_type, x, y):
@@ -214,19 +265,11 @@ class Laser(pygame.sprite.Sprite):
         if self.rect.right > SCREEN_WIDTH:
             self.kill()
 
-        # check collision with characters
-        # TODO: make sprite rects smaller
-        # TODO: account for both players
-        if pygame.sprite.spritecollide(player1, laser_group, False):
-            # if player1.alive: TAB
-            player1.health -= 5
-            self.kill()
-
         for enemy in enemy_group:
             if pygame.sprite.spritecollide(enemy, laser_group, False):
                 # if enemy.alive: TAB
                 enemy.health -= 25
-                print(enemy.health)
+                #print(enemy.health)
                 self.kill()
 
 class Missile(pygame.sprite.Sprite):
@@ -269,7 +312,7 @@ class Missile(pygame.sprite.Sprite):
             if pygame.sprite.spritecollide(enemy, missile_group, False):
                 # if enemy.alive: TAB
                 enemy.health -= 50
-                print(enemy.health)
+                #print(enemy.health)
                 self.kill()
 
 # create sprite groups
@@ -278,7 +321,7 @@ laser_group = pygame.sprite.Group()
 missile_group = pygame.sprite.Group()
 item_orb_group = pygame.sprite.Group()
 
-# temp - create item orbs
+# TEMP - create item orbs
 item_orb = ItemOrb('Health', 100, 150)
 item_orb_group.add(item_orb)
 item_orb = ItemOrb('Powerup', 150, 250)
@@ -289,8 +332,8 @@ item_orb_group.add(item_orb)
 player1 = Spaceship('player', 200, 200, 0.15, 7, 7, 100, 3)
 health_bar = HealthBar(10, 10, player1.health, player1.health)
 
-enemy = Spaceship('enemy', 400, 200, 0.1, 7, 7, 100, 0)
-enemy2 = Spaceship('enemy', 300, 100, 0.1, 7, 7, 100, 0)
+enemy = EnemyShip('enemy', 400, 150, 0.1, 5, 3, 100, 0)
+enemy2 = EnemyShip('enemy', 300, 100, 0.1, 5, 3, 100, 0)
 enemy_group.add(enemy)
 enemy_group.add(enemy2)
 
@@ -300,8 +343,7 @@ while running:
     clock.tick(FPS)
 
     draw_bg()
-    # for size reference
-    #pygame.draw.rect(screen, WHITE, (400, 400, 16, 16))
+
     # show player health
     health_bar.draw(player1.health)
     # show missile count
@@ -316,7 +358,7 @@ while running:
     player1.move(moving_down, moving_up, moving_left, moving_right)
 
     for enemy in enemy_group:
-        #enemy.ai()
+        enemy.ai()
         enemy.update()
         enemy.draw()
 
@@ -350,10 +392,10 @@ while running:
                 moving_down = True
             if event.key == pygame.K_UP:
                 moving_up = True
-            if event.key == pygame.K_LEFT:
-                moving_left = True
-            if event.key == pygame.K_RIGHT:
-                moving_right = True
+            # if event.key == pygame.K_LEFT:
+            #     moving_left = True
+            # if event.key == pygame.K_RIGHT:
+            #     moving_right = True
             if event.key == pygame.K_RCTRL:
                 shoot = True
             if event.key == pygame.K_RSHIFT:
@@ -367,10 +409,10 @@ while running:
                 moving_down = False
             if event.key == pygame.K_UP:
                 moving_up = False
-            if event.key == pygame.K_LEFT:
-                moving_left = False
-            if event.key == pygame.K_RIGHT:
-                moving_right = False
+            # if event.key == pygame.K_LEFT:
+            #     moving_left = False
+            # if event.key == pygame.K_RIGHT:
+            #     moving_right = False
             if event.key == pygame.K_RCTRL:
                 shoot = False
             if event.key == pygame.K_RSHIFT:
