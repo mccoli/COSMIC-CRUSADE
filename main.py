@@ -1,14 +1,14 @@
 import pygame
-#import random
+import random
 
 # TODO: SPRITE ANIMATION
+# !! ERROR: PLAYER LASER COLLISION !! ALL LASERS ARE IN THE SAME GROUP?
 pygame.init()
 
 # screen window
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = int(SCREEN_WIDTH * 0.8)
 divider = SCREEN_HEIGHT / 2
-SCROLL_THRESH = 200
 
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption('stage3')
@@ -33,9 +33,17 @@ def draw_text(text, font, text_colour, x, y):
     img = font.render(text, True, text_colour)
     screen.blit(img, (x, y))
 
-# load images
+# TODO: don't hardcode the path! load images
 # background
-space_img = pygame.image.load('img/background/space_img.png').convert_alpha()
+bg = pygame.image.load('img/background/space_img.png').convert_alpha()
+bg_size = bg.get_size()
+bg_rect = bg.get_rect()
+w, h = bg_size
+x = 0
+y = 0
+x1 = -w
+y1 = 0
+
 # laser
 laser_img = pygame.image.load('img/objects/laser.png').convert_alpha()
 # missile
@@ -72,11 +80,12 @@ class Cosmos():
 
     # update scroll based on timer
     def draw_bg(self):
-        screen.fill(BG)
+        screen.fill(bg)
         width = space_img.get_width()
-        #for x in range(10):
-            #screen.blit(space_img((x * width) - bg_scroll * 0.5, 0))
-        # pygame.draw.line(screen, RED, (0, divider), (SCREEN_WIDTH, divider))
+        # for x in range(10):
+        #     timer += 1
+        #     screen.blit(space_img((x * width) - timer * 0.5, 0))
+        pygame.draw.line(screen, WHITE, (0, divider), (SCREEN_WIDTH, divider))
 
 # for both players and enemy ships
 class Spaceship(pygame.sprite.Sprite):
@@ -97,9 +106,6 @@ class Spaceship(pygame.sprite.Sprite):
         # for health bar
         self.max_health = self.health
 
-        # ai specific variables
-        #self.move_vertical = 0
-
         # load image and place in bounding box
         img = pygame.image.load(f'img/characters/{self.character}/ship.png').convert_alpha()
         self.image = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
@@ -118,7 +124,8 @@ class Spaceship(pygame.sprite.Sprite):
             self.damage_cooldown -= 1
 
         for player in player_group:
-            if pygame.sprite.spritecollide(player, enemy_group, False):
+            #if pygame.sprite.spritecollide(player, enemy_group, False):
+            if pygame.sprite.collide_rect(player, enemy):
                 if player.alive:
                     if self.damage_cooldown == 0:
                         self.damage_cooldown = 60
@@ -152,6 +159,7 @@ class Spaceship(pygame.sprite.Sprite):
             self.health = 0
             self.speed = 0
             self.alive = False
+            self.kill()
 
     def draw(self):
         screen.blit(pygame.transform.rotate(self.image, -90), self.rect)
@@ -161,7 +169,7 @@ class Spaceship(pygame.sprite.Sprite):
     def shoot(self):
         if self.shoot_cooldown == 0:
             self.shoot_cooldown = 20
-            laser = Laser(self.rect.right + 3, self.rect.centery)
+            laser = PlayerLaser(self.rect.right + 10, self.rect.centery)
             laser_group.add(laser)
 
 class Spaceship2(Spaceship):
@@ -204,7 +212,7 @@ class EnemyShip(Spaceship):
         self.rect.x += dx
         self.rect.y += dy
 
-        # check collision
+        # TODO: check collision based on where they spawn (split by divider?)
         if self.rect.bottom > SCREEN_HEIGHT:
             self.rect.bottom = SCREEN_HEIGHT
         if self.rect.top < 0:
@@ -216,57 +224,10 @@ class EnemyShip(Spaceship):
     def shoot(self):
         if self.shoot_cooldown == 0:
             self.shoot_cooldown = 20
-            laser = Laser(self.rect.left + 3, self.rect.centery)
+            laser = EnemyLaser(self.rect.left + 5, self.rect.centery)
             laser_group.add(laser)
 
-    # TODO
-    # make movement and spawning pos a bit randomised so enemies don't overlap
-    # enemy shooting towards player once they're on similar y-axis
-    # def ai(self):
-
-
-class ItemOrb(pygame.sprite.Sprite):
-    def __init__(self, item_type, x, y):
-        pygame.sprite.Sprite.__init__(self)
-        self.item_type = item_type
-        self.image = item_orbs[self.item_type]
-        self.rect = self.image.get_rect()
-        self.rect.center = (x, y)
-
-    def update(self):
-        # check if player has picked up orb
-        for player in player_group:
-            if pygame.sprite.collide_rect(self, player):
-                # check orb type
-                if self.item_type == 'Health':
-                    player.health += 25
-                    if player.health > player.max_health:
-                        player.health = player.max_health
-                elif self.item_type == 'Missile':
-                    player.missiles += 1
-                # elif self.item_type == 'Powerup':
-                #     player.powers
-
-                # delete item_orb
-                self.kill()
-
-class HealthBar():
-    def __init__(self, x, y, health, max_health):
-        self.x = x
-        self.y = y
-        self.health = health
-        self.max_health = max_health
-
-    def draw(self, health):
-        # update with new health
-        self.health = health
-        # calculate health ratio
-        ratio = self.health / self.max_health
-        pygame.draw.rect(screen, BLACK, (self.x - 2, self.y - 2, 154, 24))
-        pygame.draw.rect(screen, RED, (self.x, self.y, 150, 20))
-        pygame.draw.rect(screen, GREEN, (self.x, self.y, 150 * ratio, 20))
-
-class Laser(pygame.sprite.Sprite):
+class PlayerLaser(pygame.sprite.Sprite):
     def __init__(self, x, y):
         pygame.sprite.Sprite.__init__(self)
         self.speed = 10
@@ -275,18 +236,36 @@ class Laser(pygame.sprite.Sprite):
         self.rect.center = (x, y)
 
     def update(self):
-        # move laser
         self.rect.x += self.speed
 
         # delete if off screen
         if self.rect.right > SCREEN_WIDTH:
             self.kill()
 
-        # do damage
-        for enemy in enemy_group:
+        # ?? colliding along x axis? do damage
+        #for enemy in enemy_group:
             if pygame.sprite.spritecollide(enemy, laser_group, False):
+        #for laser in laser_group:
+            #if pygame.sprite.collide_rect(enemy, laser):
+                print('collision')
                 if enemy.alive:
                     enemy.health -= 25
+                    print(enemy.health)
+                    self.kill()
+
+class EnemyLaser(PlayerLaser):
+    def update(self):
+        self.rect.x -= self.speed
+
+        # delete if off screen
+        if self.rect.left < 0:
+            self.kill()
+
+        # do damage
+        for player in player_group:
+            if pygame.sprite.spritecollide(player, laser_group, False):
+                if player.alive:
+                    player.health -= 1
                     self.kill()
 
 class Missile(pygame.sprite.Sprite):
@@ -333,12 +312,52 @@ class Missile(pygame.sprite.Sprite):
                     enemy.health -= 50
                     self.kill()
 
+class ItemOrb(pygame.sprite.Sprite):
+    def __init__(self, item_type, x, y):
+        pygame.sprite.Sprite.__init__(self)
+        self.item_type = item_type
+        self.image = item_orbs[self.item_type]
+        self.rect = self.image.get_rect()
+        self.rect.center = (x, y)
+
+    def update(self):
+        # check if player has picked up orb
+        for player in player_group:
+            if pygame.sprite.collide_rect(self, player):
+                # check orb type
+                if self.item_type == 'Health':
+                    player.health += 25
+                    if player.health > player.max_health:
+                        player.health = player.max_health
+                elif self.item_type == 'Missile':
+                    player.missiles += 1
+                # elif self.item_type == 'Powerup':
+                #     player.powers
+
+                # delete item_orb
+                self.kill()
+
+class HealthBar():
+    def __init__(self, x, y, health, max_health):
+        self.x = x
+        self.y = y
+        self.health = health
+        self.max_health = max_health
+
+    def draw(self, health):
+        # update with new health
+        self.health = health
+        # calculate health ratio
+        ratio = self.health / self.max_health
+        pygame.draw.rect(screen, BLACK, (self.x - 2, self.y - 2, 154, 24))
+        pygame.draw.rect(screen, RED, (self.x, self.y, 150, 20))
+        pygame.draw.rect(screen, GREEN, (self.x, self.y, 150 * ratio, 20))
 # create Cosmos
 cosmos = Cosmos(0, 1000)
 
 # create sprite groups
 player_group = pygame.sprite.Group()
-enemy_group = pygame.sprite.Group()
+#enemy_group = pygame.sprite.Group()
 laser_group = pygame.sprite.Group()
 missile_group = pygame.sprite.Group()
 item_orb_group = pygame.sprite.Group()
@@ -360,16 +379,33 @@ player_group.add(player2)
 
 # TEMP - generate enemies off screen in random coordinates
 enemy = EnemyShip('enemy', 400, 150, 0.1, 5, 100, 0)
-enemy2 = EnemyShip('enemy', 300, 100, 0.1, 5, 100, 0)
-enemy_group.add(enemy)
-enemy_group.add(enemy2)
+#enemy2 = EnemyShip('enemy', 300, 100, 0.1, 5, 100, 0)
+#enemy_group.add(enemy)
+#enemy_group.add(enemy2)
 
 running = True
+
+# TODO: enemy ai variables
+timer = random.randint(1, 3)
+dt = 1
 
 while running:
     clock.tick(FPS)
 
-    cosmos.draw_bg()
+    #cosmos.draw_bg()
+    screen.blit(bg, bg_rect)
+    pygame.display.update()
+    pygame.draw.line(screen, WHITE, (0, divider), (SCREEN_WIDTH, divider))
+
+    # screen scroll
+    x1 += 5
+    x += 5
+    screen.blit(bg, (x, y))
+    screen.blit(bg, (x1, y1))
+    if x > w:
+        x = -w
+    if x1 > x:
+        x1 = -w
 
     # show players health
     health_bar1.draw(player1.health)
@@ -396,10 +432,11 @@ while running:
     player1.move(moving_down1, moving_up1)
     player2.move(moving_down2, moving_up2)
 
-    for enemy in enemy_group:
-        #enemy.ai()
-        enemy.update()
-        enemy.draw()
+    #for enemy in enemy_group:
+    enemy.update()
+    enemy.draw()
+    if not enemy.alive:
+        enemy.kill()
 
     # update and draw groups
     laser_group.update()
@@ -429,6 +466,11 @@ while running:
             player2.missiles -= 1
             missile_shot2 = True
 
+    #enemy ai
+    #for enemy in enemy_group:
+    if enemy.alive:
+        enemy.shoot()
+
     keys = pygame.key.get_pressed()
 
     # player 1 key presses
@@ -440,7 +482,7 @@ while running:
         shoot1 = True
     if keys [pygame.K_RSHIFT]:
         missile1 = True
-    # !!BUG, GETS STUCK AT HEALTHBAR player 2 key presses
+    # player 2 key presses
     if keys [pygame.K_s]:
         moving_down2 = True
     if keys [pygame.K_w]:
