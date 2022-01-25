@@ -92,9 +92,11 @@ class Spaceship(pygame.sprite.Sprite):
         self.max_health = self.health
 
         # enemy specific
-        self.vision = pygame.Rect(0, 0, 300, 80)
         self.direction = 1
         self.move_counter = 0
+        self.idling = False
+        self.idling_counter = 0
+        self.vision = pygame.Rect(0, 0, 400, 200)
 
         # load image and place in bounding box
         img = pygame.image.load(f'img/characters/{self.character}/ship.png').convert_alpha()
@@ -164,8 +166,7 @@ class Spaceship(pygame.sprite.Sprite):
 
     def draw(self):
         screen.blit(self.image, self.rect)
-        # show rects
-        pygame.draw.rect(screen, RED, self.rect, 1)
+        #pygame.draw.rect(screen, RED, self.rect, 1)
 
     def shoot(self):
         if self.shoot_cooldown == 0:
@@ -176,6 +177,7 @@ class Spaceship(pygame.sprite.Sprite):
 class Spaceship2(Spaceship):
     def move(self, moving_down, moving_up, moving_right, moving_left):
         # reset movement variables
+        screen_scroll = 0
         dy = 0
         dx = 0
 
@@ -200,6 +202,12 @@ class Spaceship2(Spaceship):
             self.rect.top = divider - dy
         if self.rect.left + dx < 0:
             self.rect.left = 0
+
+        if (self.rect.right > SCREEN_WIDTH - SCROLL_THRESH):
+            self.rect.x -= dx
+            screen_scroll = -dx
+
+        return screen_scroll
 
 class EnemyShip(Spaceship):
     def move(self, moving_down, moving_up):
@@ -229,40 +237,51 @@ class EnemyShip(Spaceship):
             self.kill()
 
     def update(self):
+        self.check_alive()
+
+        if self.shoot_cooldown > 0:
+            self.shoot_cooldown -= 1
+
         # scroll
         self.rect.x += screen_scroll
 
     def shoot(self):
         if self.shoot_cooldown == 0:
-            self.shoot_cooldown = 40
+            self.shoot_cooldown = 20
             laser = EnemyLaser(self.rect.left + 5, self.rect.centery)
             laser_group_enemy.add(laser)
 
     def ai(self):
-        # TODO - figure out how to apply to both players
-        # check if near the player
-        if self.vision.colliderect(player1.rect):
-            # stop moving and shoot
-            self.shoot()
-        else:
-            # automatic movement
-            if self.direction == 1:
-                ai_moving_down = True
+        if self.alive:
+            if self.idling == False and random.randint(1, 50) == 1:
+                self.idling = True
+                self.idling_counter = 50
+                self.moving_up = False
+                self.moving_down = False
+            for player in player_group:
+                if self.vision.colliderect(player.rect):
+                    self.shoot()
             else:
-                ai_moving_down = False
-            ai_moving_up = not ai_moving_down
+                if self.idling == False:
+                    # automatic movement
+                    if self.direction == 1:
+                        ai_moving_down = True
+                    else:
+                        ai_moving_down = False
+                    ai_moving_up = not ai_moving_down
 
-            self.move(ai_moving_down, ai_moving_up)
-            self.move_counter += 1
+                    self.move(ai_moving_down, ai_moving_up)
+                    self.move_counter += 1
+                    self.vision.center = (self.rect.centerx - 200, self.rect.centery)
+                    #pygame.draw.rect(screen, RED, self.vision, 1)
 
-            # update ai vision with movement
-            self.vision.center = (self.rect.centerx - 100 ,self.rect.centery)
-            pygame.draw.rect(screen, RED, self.vision)
-
-            if self.move_counter > TILE_SIZE:
-                self.direction *= -1
-                self.move_counter *= -1
-
+                    if self.move_counter > TILE_SIZE:
+                        self.direction *= -1
+                        self.move_counter *= -1
+                else:
+                    self.idling_counter -= 1
+                    if self.idling_counter <= 0:
+                        self.idling = False
 
 class PlayerLaser(pygame.sprite.Sprite):
     def __init__(self, x, y):
@@ -284,6 +303,7 @@ class PlayerLaser(pygame.sprite.Sprite):
             if pygame.sprite.spritecollide(enemy, laser_group_player, False):
                 if enemy.alive:
                     enemy.health -= 25
+                    print('enemy health is: ', enemy.health)
                     self.kill()
 
 class EnemyLaser(PlayerLaser):
@@ -416,21 +436,72 @@ for x in range(random.randint(1, 2)):
 
 # generate more enemies off screen
 def enemy_generation():
-    # TEMP - should be dependant on level length - don't generate on top of each other
-    x1 = random.randint(SCREEN_WIDTH + 100, SCREEN_WIDTH + 400)
-    y1 = random.randint(0, divider)
-    x2 = random.randint(SCREEN_WIDTH + 100, SCREEN_WIDTH + 400)
-    y2 = random.randint(divider, SCREEN_HEIGHT)
-    for i in range(random.randint(1, 2)):
-        if i == 1:
-            e = EnemyShip('enemy', x1, y1, 0.1, 5, 100, 0)
-            enemy_group.add(e)
-        if i == 2:
-            e = EnemyShip('enemy', x2, y2, 0.1, 5, 100, 0)
-            enemy_group.add(e)
+    num_of_enemies = len(enemy_group)
+    min_enemy_x = 300
+    max_enemy_x = 2000
+    # gives each enemy a spawning 'zone'
+    enemy_x_range = max_enemy_x - min_enemy_x
+    enemy_zone_width = enemy_x_range - num_of_enemies
+    # gives a gap between enemies
+    pixel_buffer = 50
+    # above divider or below divider
+    y1 = random.randint(pixel_buffer, divider + pixel_buffer)
+    y2 = random.randint(divider + pixel_buffer, SCREEN_HEIGHT + pixel_buffer)
+
+    for i in range(num_of_enemies):
+        min_x = min_enemy_x + enemy_zone_width * i + pixel_buffer / 2
+        max_x = min_enemy_x + enemy_zone_width * (i + 1) - pixel_buffer / 2
+        for n in range(random.randint(1, 2)):
+            if n == 1:
+                e = EnemyShip('enemy', random.randrange(min_x, max_x), y1, 0.1, 5, 100, 0)
+                enemy_group.add(e)
+            if n == 2:
+                e = EnemyShip('enemy', random.randrange(min_x, max_x), y2, 0.1, 5, 100, 0)
+                enemy_group.add(e)
 
 # TODO - item_orb generation off screen
-#def item_orb_generation():
+def item_orb_generation():
+    num_of_orbs = len(item_orb_group)
+    min_orb_x = 300
+    max_orb_x = 2000
+    # gives each item a spawning 'zone'
+    orb_x_range = max_orb_x - min_orb_x
+    orb_zone_width = orb_x_range - num_of_orbs
+    # gives a gap between items
+    pixel_buffer = 150
+    # above divider or below divider
+    y1 = random.randint(pixel_buffer, divider + pixel_buffer)
+    y2 = random.randint(divider + pixel_buffer, SCREEN_HEIGHT + pixel_buffer)
+
+    for i in range(num_of_orbs):
+        min_x = min_orb_x + orb_zone_width * i + pixel_buffer / 2
+        max_x = min_orb_x + orb_zone_width * (i + 1) - pixel_buffer / 2
+        for r in range(random.randint(1, 2)):
+            # generate above divider
+            if r == 1:
+                for n in range(random.randint(1, 3)):
+                    if n == 1:
+                        o = ItemOrb('Health', random.randrange(min_x, max_x), y1)
+                        item_orb_group.add(o)
+                    if n == 2:
+                        o = ItemOrb('Missile', random.randrange(min_x, max_x), y1)
+                        item_orb_group.add(o)
+                    if n == 2:
+                        o = ItemOrb('Powerup', random.randrange(min_x, max_x), y1)
+                        item_orb_group.add(o)
+            # generate below divider
+            elif r == 2:
+                for n in range(random.randint(1, 3)):
+                    if n == 1:
+                        o = ItemOrb('Health', random.randrange(min_x, max_x), y2)
+                        item_orb_group.add(o)
+                    if n == 2:
+                        o = ItemOrb('Missile', random.randrange(min_x, max_x), y2)
+                        item_orb_group.add(o)
+                    if n == 2:
+                        o = ItemOrb('Powerup', random.randrange(min_x, max_x), y2)
+                        item_orb_group.add(o)
+
 
 player1 = Spaceship('player', 50, 150, 0.15, 7, 100, 3)
 health_bar1 = HealthBar(10, 10, player1.health, player1.health)
@@ -446,10 +517,7 @@ while running:
     clock.tick(FPS)
     time = clock.get_time()
 
-    #draw_bg()
     screen.blit(BG, (0, 0))
-
-    #world_gen()
 
     pygame.draw.line(screen, WHITE, (0, divider), (SCREEN_WIDTH, divider))
 
@@ -482,15 +550,19 @@ while running:
     # TEMP - should be dependant on level length
     while i < 8:
         enemy_generation()
+        item_orb_generation()
         i += 1
 
     for enemy in enemy_group:
         enemy.update()
         enemy.draw()
-        if enemy.alive:
-            enemy.ai()
-        else:
-            enemy.kill()
+        #if enemy.alive:
+            #enemy.shoot()
+        enemy.ai()
+        #else:
+            # ! enemies are not dying - health goes below 0 but self.kill() is never satisfied
+            #enemy.kill()
+            #print('i am ded')
 
     # update and draw groups
     laser_group_player.update()
