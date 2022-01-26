@@ -11,6 +11,7 @@ divider = SCREEN_HEIGHT / 2
 # general game variables
 SCROLL_THRESH = 200
 screen_scroll = 0
+scroll_ctrl = True
 TILE_SIZE = 30
 start_game = False
 game_over = False
@@ -40,7 +41,8 @@ def draw_text(text, font, text_colour, x, y):
 # reset game
 def restart_game():
     player_group.empty()
-    enemy_group_total.empty()
+    enemy_group_upper.empty()
+    enemy_group_lower.empty()
     laser_group_enemy.empty()
     laser_group_player.empty()
     missile_group.empty()
@@ -131,7 +133,12 @@ class Spaceship(pygame.sprite.Sprite):
             self.damage_cooldown -= 1
 
         for player in player_group:
-            if pygame.sprite.spritecollide(player, enemy_group_total, False):
+            if pygame.sprite.spritecollide(player, enemy_group_upper, False):
+                if player.alive:
+                    if self.damage_cooldown == 0:
+                        self.damage_cooldown = 60
+                        player.health -= 1
+            if pygame.sprite.spritecollide(player, enemy_group_lower, False):
                 if player.alive:
                     if self.damage_cooldown == 0:
                         self.damage_cooldown = 60
@@ -314,7 +321,12 @@ class PlayerLaser(pygame.sprite.Sprite):
         if self.rect.right > SCREEN_WIDTH:
             self.kill()
 
-        for enemy in enemy_group_total:
+        for enemy in enemy_group_upper:
+            if pygame.sprite.spritecollide(enemy, laser_group_player, False):
+                if enemy.alive:
+                    enemy.health -= 25
+                    self.kill()
+        for enemy in enemy_group_lower:
             if pygame.sprite.spritecollide(enemy, laser_group_player, False):
                 if enemy.alive:
                     enemy.health -= 25
@@ -373,7 +385,12 @@ class Missile(pygame.sprite.Sprite):
             self.kill()
 
         # do damage
-        for enemy in enemy_group_total:
+        for enemy in enemy_group_upper:
+            if pygame.sprite.spritecollide(enemy, missile_group, False):
+                if enemy.alive:
+                    enemy.health -= 50
+                    self.kill()
+        for enemy in enemy_group_lower:
             if pygame.sprite.spritecollide(enemy, missile_group, False):
                 if enemy.alive:
                     enemy.health -= 50
@@ -484,7 +501,7 @@ class Cosmos():
 
     def continuous_gen(self):
         # generate more enemies off screen
-        num_of_enemies = len(enemy_group_total)
+        num_of_enemies = len(enemy_group_upper) + len(enemy_group_lower)
         # TEMP - dependant on level length
         min_enemy_x = 300
         max_enemy_x = 2000
@@ -561,9 +578,6 @@ restart_button = Button(SCREEN_WIDTH // 2 + 200, SCREEN_HEIGHT // 2 + 220, resta
 player_group = pygame.sprite.Group()
 enemy_group_upper = pygame.sprite.Group()
 enemy_group_lower = pygame.sprite.Group()
-enemy_group_total = pygame.sprite.Group()
-enemy_group_total.add(enemy_group_lower)
-enemy_group_total.add(enemy_group_upper)
 laser_group_player = pygame.sprite.Group()
 laser_group_enemy = pygame.sprite.Group()
 missile_group = pygame.sprite.Group()
@@ -634,21 +648,20 @@ while running:
             player.update()
             player.draw()
 
-        # gone lol
-        for enemy in enemy_group_total:
-            enemy.update()
-            enemy.draw()
-            enemy.ai()
-
-        # checking and recording deaths
-        for enemy in enemy_group_upper:
-            if not enemy.alive:
+        # updating and drawing enemy groups
+        for enemy_upper in enemy_group_upper:
+            enemy_upper.update()
+            enemy_upper.draw()
+            enemy_upper.ai()
+            if not enemy_upper.alive:
                 death_record_upper += 1
-                print('player 1 kills: ', death_record_upper)
-        for enemy in enemy_group_lower:
-            if not enemy.alive:
+
+        for enemy_lower in enemy_group_lower:
+            enemy_lower.update()
+            enemy_lower.draw()
+            enemy_lower.ai()
+            if not enemy_lower.alive:
                 death_record_lower += 1
-                print('player 2 kills: ', death_record_lower)
 
         # update and draw groups
         laser_group_player.update()
@@ -663,8 +676,14 @@ while running:
         # update player1 actions
         if player1.alive:
             # p1 controls screen scrolling as long as they're alive
-            screen_scroll = player1.move(moving_down1, moving_up1, moving_right1, moving_left1)
-            player2.move(moving_down2, moving_up2, moving_right2, moving_left2)
+            if scroll_ctrl == True:
+                screen_scroll = player1.move(moving_down1, moving_up1, moving_right1, moving_left1)
+            else:
+                player1.move(moving_down1, moving_up1, moving_right1, moving_left1)
+            if player1.rect.x < player2.rect.x:
+                scroll_ctrl = False
+            else:
+                scroll_ctrl = True
             if shoot1:
                 player1.shoot()
             elif missile1 and missile_shot1 == False and player1.missiles > 0:
@@ -673,13 +692,14 @@ while running:
                 player1.missiles -= 1
                 missile_shot1 = True
         else:
-            screen_scroll = player2.move(moving_down2, moving_up2, moving_right2, moving_left2)
+            scroll_ctrl = False
 
         # update player2 actions
         if player2.alive:
-            # if p2 is ahead of p1 they control screen scrolling
-            if player2.rect.x > player1.rect.x:
+            if scroll_ctrl == False:
                 screen_scroll = player2.move(moving_down2, moving_up2, moving_right2, moving_left2)
+            else:
+                player2.move(moving_down2, moving_up2, moving_right2, moving_left2)
             if shoot2:
                 player2.shoot()
             elif missile2 and missile_shot2 == False and player2.missiles > 0:
@@ -687,6 +707,8 @@ while running:
                 missile_group.add(missile)
                 player2.missiles -= 1
                 missile_shot2 = True
+        else:
+            scroll_ctrl = True
 
         if not player1.alive and not player2.alive:
             screen_scroll = 0
@@ -694,7 +716,7 @@ while running:
                 init_gen = 0
                 cont_gen = 0
                 restart_game()
-                restarts += 3
+                restarts += 1
                 start_game = True
 
         else:
@@ -704,10 +726,16 @@ while running:
             if game_over == True:
                 restart_game()
                 screen.fill(WHITE)
+                # display game over and winner
                 screen.blit(game_over_img, (100, 100))
-                draw_text(f'PLAYER 1: {death_record_upper}', font, BLACK, 100, 30)
-                draw_text(f'PLAYER 2: {death_record_lower}', font, BLACK, 100, 60)
-
+                draw_text(f'PLAYER 1 KILLS: {death_record_upper}', font, BLACK, 100, 30)
+                draw_text(f'PLAYER 2 KILLS: {death_record_lower}', font, BLACK, 100, 60)
+                if death_record_upper > death_record_lower:
+                    draw_text('PLAYER 1 WINS!', font, BLACK, 200, 10)
+                elif death_record_lower > death_record_upper:
+                    draw_text('PLAYER 2 WINS!', font, BLACK, 200, 10)
+                else:
+                    draw_text('YOU TIED!', font, BLACK, 200, 10)
 
     keys = pygame.key.get_pressed()
 
