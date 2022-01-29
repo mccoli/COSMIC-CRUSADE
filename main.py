@@ -31,7 +31,7 @@ WHITE = (255, 255, 255)
 GREEN = (0, 255, 0)
 
 # define font
-font = pygame.font.SysFont('Futura', 30)
+font = pygame.font.Font('img/Heytext.ttf', 30)
 
 # draw text
 def draw_text(text, font, text_colour, x, y):
@@ -50,9 +50,9 @@ def restart_game():
 
 # load images
 # background
-BG = pygame.image.load('img/background/test_scroll.png').convert_alpha()
+main_menu = pygame.image.load('img/background/main_menu.png').convert_alpha()
 # screens
-game_over_img = pygame.image.load('img/icons/game_over_img.png').convert_alpha()
+game_over_img = pygame.image.load('img/background/game_over.png').convert_alpha()
 # button images
 start_img = pygame.image.load('img/icons/start_img.png').convert_alpha()
 exit_img = pygame.image.load('img/icons/exit_img.png').convert_alpha()
@@ -117,7 +117,7 @@ class Spaceship(pygame.sprite.Sprite):
         self.vision = pygame.Rect(0, 0, 400, 200)
 
         # load image and place in bounding box
-        img = pygame.image.load(f'img/characters/{self.character}/ship.png').convert_alpha()
+        img = pygame.image.load(f'img/characters/{self.character}/healer.png').convert_alpha()
         self.image = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
@@ -344,7 +344,7 @@ class EnemyLaser(PlayerLaser):
         for player in player_group:
             if pygame.sprite.spritecollide(player, laser_group_enemy, False):
                 if player.alive:
-                    player.health -= 1
+                    player.health -= 25
                     self.kill()
 
 class Missile(pygame.sprite.Sprite):
@@ -472,9 +472,9 @@ class Cosmos():
 
     def initial_gen(self):
         # create instances of players and their health bars
-        player1 = Spaceship('player', 50, 150, 0.15, 7, 100, 3)
+        player1 = Spaceship('player', 50, 150, 1.5, 7, 100, 3)
         health_bar1 = HealthBar(10, 10, player1.health, player1.health)
-        player2 = Spaceship2('player', 50, (divider + 150), 0.15, 7, 100, 3)
+        player2 = Spaceship2('player', 50, (divider + 150), 1.5, 7, 100, 3)
         health_bar2 = HealthBar(10, (divider + 10), player2.health, player2.health)
         player_group.add(player1)
         player_group.add(player2)
@@ -491,9 +491,9 @@ class Cosmos():
         # create first enemies
         for x in range(random.randint(1, 2)):
             # above divider
-            enemy = EnemyShip('enemy', random.randint(400, SCREEN_WIDTH - 10), random.randint(150, divider - 10), 0.1, 5, 100, 0)
+            enemy = EnemyShip('enemy', random.randint(400, SCREEN_WIDTH - 10), random.randint(150, divider - 10), 1.5, 5, 100, 0)
             # below divider
-            enemy2 = EnemyShip('enemy', random.randint(300, SCREEN_WIDTH - 10), random.randint(divider + 10, SCREEN_HEIGHT - 10), 0.1, 5, 100, 0)
+            enemy2 = EnemyShip('enemy', random.randint(300, SCREEN_WIDTH - 10), random.randint(divider + 10, SCREEN_HEIGHT - 10), 1.5, 5, 100, 0)
             enemy_group_upper.add(enemy)
             enemy_group_lower.add(enemy2)
 
@@ -519,10 +519,10 @@ class Cosmos():
             max_x = min_enemy_x + enemy_zone_width * (i + 1) - pixel_buffer / 2
             for n in range(random.randint(1, 2)):
                 if n == 1:
-                    e = EnemyShip('enemy', random.randrange(min_x, max_x), y1, 0.1, 5, 100, 0)
+                    e = EnemyShip('enemy', random.randrange(min_x, max_x), y1, 1.5, 5, 100, 0)
                     enemy_group_upper.add(e)
                 if n == 2:
-                    e = EnemyShip('enemy', random.randrange(min_x, max_x), y2, 0.1, 5, 100, 0)
+                    e = EnemyShip('enemy', random.randrange(min_x, max_x), y2, 1.5, 5, 100, 0)
                     enemy_group_lower.add(e)
 
         # generate more item orbs off screen
@@ -569,10 +569,10 @@ class Cosmos():
                             item_orb_group.add(o)
 
 # create buttons
-start_button = Button(SCREEN_WIDTH // 2 - 180, SCREEN_HEIGHT // 2 - 160, start_img, 1)
-controls_button = Button(SCREEN_WIDTH // 2 - 180, SCREEN_HEIGHT // 2 + 20, controls_img, 1)
-exit_button = Button(SCREEN_WIDTH // 2 + 200, SCREEN_HEIGHT // 2 + 220, exit_img, 0.4)
-restart_button = Button(SCREEN_WIDTH // 2 + 200, SCREEN_HEIGHT // 2 + 220, restart_img, 0.4)
+start_button = Button(410, 440, start_img, 2.5)
+controls_button = Button(7, 125, controls_img, 2.5)
+exit_button = Button(7, 235, exit_img, 2.5)
+restart_button = Button(SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT // 2 - 100, restart_img, 4)
 
 # create sprite groups
 player_group = pygame.sprite.Group()
@@ -602,7 +602,7 @@ while running:
     # main menu
     if start_game == False:
         # background
-        screen.blit(BG, (0, 0))
+        screen.blit(main_menu, (0, 0))
         # buttons
         if start_button.draw(screen):
             start_game = True
@@ -612,7 +612,7 @@ while running:
             pass # TODO - create controls splash screen
     else:
         # gameplay
-        screen.blit(BG, (0, 0))
+        screen.fill(BLACK)
 
         pygame.draw.line(screen, WHITE, (0, divider), (SCREEN_WIDTH, divider))
 
@@ -716,7 +716,7 @@ while running:
                 init_gen = 0
                 cont_gen = 0
                 restart_game()
-                restarts += 1
+                restarts += 3
                 start_game = True
 
         else:
@@ -725,17 +725,16 @@ while running:
 
             if game_over == True:
                 restart_game()
-                screen.fill(WHITE)
                 # display game over and winner
-                screen.blit(game_over_img, (100, 100))
-                draw_text(f'PLAYER 1 KILLS: {death_record_upper}', font, BLACK, 100, 30)
-                draw_text(f'PLAYER 2 KILLS: {death_record_lower}', font, BLACK, 100, 60)
+                screen.blit(game_over_img, (0, 0))
+                draw_text(f'PLAYER 1 KILLS: {death_record_upper}', font, BLACK, 200, 300)
+                draw_text(f'PLAYER 2 KILLS: {death_record_lower}', font, BLACK, 200, 400)
                 if death_record_upper > death_record_lower:
-                    draw_text('PLAYER 1 WINS!', font, BLACK, 200, 10)
+                    draw_text('PLAYER 1 WINS!', font, BLACK, 400, 200)
                 elif death_record_lower > death_record_upper:
-                    draw_text('PLAYER 2 WINS!', font, BLACK, 200, 10)
+                    draw_text('PLAYER 2 WINS!', font, BLACK, 400, 200)
                 else:
-                    draw_text('YOU TIED!', font, BLACK, 200, 10)
+                    draw_text('YOU TIED!', font, BLACK, 350, 200)
 
     keys = pygame.key.get_pressed()
 
