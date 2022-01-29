@@ -13,7 +13,9 @@ SCROLL_THRESH = 200
 screen_scroll = 0
 scroll_ctrl = True
 TILE_SIZE = 30
+main_menu = True
 start_game = False
+select_screen = False
 game_over = False
 
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -50,14 +52,21 @@ def restart_game():
 
 # load images
 # background
-main_menu = pygame.image.load('img/background/main_menu.png').convert_alpha()
+main_menu_img = pygame.image.load('img/background/main_menu.png').convert_alpha()
 # screens
+player1_select_img = pygame.image.load('img/background/player1_select.png').convert_alpha()
+p1_select_warrior_img = pygame.image.load('img/background/player1_select_oriel.png').convert_alpha()
+player2_select_img = pygame.image.load('img/background/player2_select.png').convert_alpha()
 game_over_img = pygame.image.load('img/background/game_over.png').convert_alpha()
 # button images
 start_img = pygame.image.load('img/icons/start_img.png').convert_alpha()
 exit_img = pygame.image.load('img/icons/exit_img.png').convert_alpha()
 controls_img = pygame.image.load('img/icons/controls_img.png').convert_alpha()
 restart_img = pygame.image.load('img/icons/restart_img.png').convert_alpha()
+healer_select_img = pygame.image.load('img/icons/healer_select.png').convert_alpha()
+rogue_select_img = pygame.image.load('img/icons/rogue_select.png').convert_alpha()
+warrior_select_img = pygame.image.load('img/icons/oriel_select.png').convert_alpha()
+mage_select_img = pygame.image.load('img/icons/zinta_select.png').convert_alpha()
 # laser
 laser_img = pygame.image.load('img/objects/laser.png').convert_alpha()
 # missile
@@ -314,7 +323,7 @@ class PlayerLaser(pygame.sprite.Sprite):
         self.rect.center = (x, y)
 
     def update(self):
-        pygame.draw.rect(screen, RED, self.rect, 1)
+        #pygame.draw.rect(screen, RED, self.rect, 1)
         self.rect.x += self.speed + screen_scroll
 
         # delete if off screen
@@ -458,6 +467,7 @@ class Button():
             if pygame.mouse.get_pressed()[0] == 1 and self.clicked == False:
                 action = True
                 self.clicked = True
+                print('clicked')
 
         if pygame.mouse.get_pressed()[0] == 0:
             self.clicked = False
@@ -573,6 +583,10 @@ start_button = Button(410, 440, start_img, 2.5)
 controls_button = Button(7, 125, controls_img, 2.5)
 exit_button = Button(7, 235, exit_img, 2.5)
 restart_button = Button(SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT // 2 - 100, restart_img, 4)
+healer_select = Button(5, 240, healer_select_img, 1)
+rogue_select = Button(205, 240, rogue_select_img, 1)
+warrior_select = Button(405, 240, warrior_select_img, 1)
+mage_select = Button(605, 240, mage_select_img, 1)
 
 # create sprite groups
 player_group = pygame.sprite.Group()
@@ -599,18 +613,31 @@ running = True
 while running:
     clock.tick(FPS)
 
-    # main menu
-    if start_game == False:
-        # background
-        screen.blit(main_menu, (0, 0))
+    if main_menu == True:
+        screen.blit(main_menu_img, (0, 0))
         # buttons
-        if start_button.draw(screen):
-            start_game = True
-        if exit_button.draw(screen):
-            running = False
         if controls_button.draw(screen):
             pass # TODO - create controls splash screen
-    else:
+        if exit_button.draw(screen):
+            running = False
+        if start_button.draw(screen):
+            print('start')
+            main_menu = False
+            screen.blit(player1_select_img, (0, 0))
+            print('start')
+            if warrior_select.draw(screen):
+                print('warrior')
+                main_menu = False
+                screen.blit(p1_select_warrior_img, (0, 0))
+                print('warrior')
+        elif healer_select.draw(screen):
+            pass
+        elif rogue_select.draw(screen):
+            pass
+        elif mage_select.draw(screen):
+            pass
+
+    elif main_menu == False and start_game == True:
         # gameplay
         screen.fill(BLACK)
 
@@ -629,19 +656,16 @@ while running:
         health_bar1.draw(player1.health)
         health_bar2.draw(player2.health)
 
-        # show missile count for player1
+        # show missile counts
         draw_text('MISSILES: ', font, WHITE, 10, 35)
-        # show missile count for player2
         draw_text('MISSILES: ', font, WHITE, 10, (35 + divider))
 
         for x in range(player1.missiles):
             screen.blit(missile_img, (125 + (x * 40), 40))
-        # TODO: show health as hearts
         draw_text(f'HEALTH: {player1.health}', font, WHITE, 10, 60)
 
         for x in range(player2.missiles):
             screen.blit(missile_img, (125 + (x * 40), (40 + divider)))
-        # TODO: show health as hearts
         draw_text(f'HEALTH: {player2.health}', font, WHITE, 10, (60 + divider))
 
         for player in player_group:
@@ -725,10 +749,11 @@ while running:
 
             if game_over == True:
                 restart_game()
-                # display game over and winner
+                # display game over and winner or tie
                 screen.blit(game_over_img, (0, 0))
                 draw_text(f'PLAYER 1 KILLS: {death_record_upper}', font, BLACK, 200, 300)
                 draw_text(f'PLAYER 2 KILLS: {death_record_lower}', font, BLACK, 200, 400)
+                draw_text('a game by Olivia McCallum. special thanks to Witty Wong and Leo Pettik', font, BLACK, 200, 600)
                 if death_record_upper > death_record_lower:
                     draw_text('PLAYER 1 WINS!', font, BLACK, 400, 200)
                 elif death_record_lower > death_record_upper:
@@ -797,8 +822,8 @@ while running:
         missile2 = False
         missile_shot2 = False
 
+    # quit pygame
     for event in pygame.event.get():
-        # quit pygame
         if event.type == pygame.QUIT:
             running = False
 
