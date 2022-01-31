@@ -10,6 +10,7 @@ from enemy import EnemyShip, EnemyLaser
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = int(SCREEN_WIDTH * 0.8)
 divider = SCREEN_HEIGHT / 2
+
 # general game variables
 SCROLL_THRESH = 200
 screen_scroll = 0
@@ -33,6 +34,7 @@ class HealthBar():
         self.max_health = max_health
 
     def draw(self):
+        # draw outline and 'empty' health
         pygame.draw.rect(screen, BLACK, (self.x - 2, self.y - 2, 154, 24))
         pygame.draw.rect(screen, RED, (self.x, self.y, 150, 20))
 
@@ -41,6 +43,7 @@ class HealthBar():
         self.health = health
         # calculate health ratio
         ratio = self.health / self.max_health
+        # cover 'empty' health with current health value
         pygame.draw.rect(screen, GREEN, (self.x, self.y, 150 * ratio, 20))
 
 class ItemOrb(pygame.sprite.Sprite):
@@ -52,7 +55,7 @@ class ItemOrb(pygame.sprite.Sprite):
         health_orb_img = pygame.image.load('img/objects/health_orb.png').convert_alpha()
         powerup_orb_img = pygame.image.load('img/objects/powerup_orb.png').convert_alpha()
         missile_orb_img = pygame.image.load('img/objects/missile_orb.png').convert_alpha()
-
+        # dict to hold item options
         item_orbs = {
             'Health'    : health_orb_img,
             'Powerup'   : powerup_orb_img,
@@ -75,11 +78,8 @@ class ItemOrb(pygame.sprite.Sprite):
                         player.health = player.max_health
                 elif self.item_type == 'Missile':
                     player.missiles += 1
-                # elif self.item_type == 'Powerup':
-                #     player.powers
-
-                # delete item_orb
                 self.kill()
+
 # create sprite groups
 player_group = pygame.sprite.Group()
 enemy_group_upper = pygame.sprite.Group()
@@ -89,28 +89,42 @@ laser_group_enemy = pygame.sprite.Group()
 missile_group = pygame.sprite.Group()
 item_orb_group = pygame.sprite.Group()
 
+# holds functions for world generation
 class Cosmos():
     def __init__(self):
         pass
 
     def initial_gen(self):
-        selection1 = SelectionMenu1()
-        p1select = 'warrior_select'
-        for key in selection1.options_dict.keys():
-            # ERROR none were changed to selected!
-            if key == 'selected':
-                p1select = key
+        # calling to access selection dictionaries
+        p1select = SelectionMenu1()
+        p2select = SelectionMenu2()
 
-        selection2 = SelectionMenu2()
-        p2select = 'mage_select'
-        for key in selection2.options_dict.keys():
+        # default characters
+        p1character = 'warrior_select'
+        p2character = 'mage_select'
+
+        # ERROR dict keys not changing
+        for key in p1select.options_dict.keys():
+            #print(key)
             if key == 'selected':
-                p2select = key
+                p1character = key
+                #print('selected found')
+            else:
+                pass
+                #print('none selected')
+
+        for key in p2select.options_dict.keys():
+            if key == 'selected':
+                p2character = key
+                #print('selected found')
+            else:
+                pass
+                #print('none selected')
 
         # create instances of players and their health bars
-        player1 = Spaceship1(50, 150, 1.5, 7, 100, 3, p1select)
+        player1 = Spaceship1(50, 150, 1.5, 7, 100, 3, p1character)
         health_bar1 = HealthBar(10, 10, player1.health, player1.health)
-        player2 = Spaceship2(50, (divider + 150), 1.5, 7, 100, 3, p2select)
+        player2 = Spaceship2(50, (divider + 150), 1.5, 7, 100, 3, p2character)
         health_bar2 = HealthBar(10, (divider + 10), player2.health, player2.health)
         health_bar1.draw()
         health_bar2.draw()
@@ -140,7 +154,6 @@ class Cosmos():
     def continuous_gen(self):
         # generate more enemies off screen
         num_of_enemies = len(enemy_group_upper) + len(enemy_group_lower)
-        # TEMP - dependant on level length
         min_enemy_x = 300
         max_enemy_x = 2000
         # gives each enemy a spawning 'zone'
@@ -153,7 +166,6 @@ class Cosmos():
         y2 = random.randint(divider + pixel_buffer, SCREEN_HEIGHT + pixel_buffer)
 
         for i in range(num_of_enemies):
-            #print('# of enemies: ', num_of_enemies)
             min_x = min_enemy_x + enemy_zone_width * i + pixel_buffer / 2
             max_x = min_enemy_x + enemy_zone_width * (i + 1) - pixel_buffer / 2
             n = random.randint(1, 2)
@@ -166,7 +178,6 @@ class Cosmos():
 
         # generate more item orbs off screen
         num_of_orbs = len(item_orb_group)
-        # TEMP - dependant on level length
         min_orb_x = 300
         max_orb_x = 2000
         # gives each item a spawning 'zone'
@@ -179,7 +190,6 @@ class Cosmos():
         y2 = random.randint(divider + pixel_buffer, SCREEN_HEIGHT + pixel_buffer)
 
         for i in range(num_of_orbs):
-            #print('# of orbs: ', num_of_orbs)
             min_x = min_orb_x + orb_zone_width * i + pixel_buffer / 2
             max_x = min_orb_x + orb_zone_width * (i + 1) - pixel_buffer / 2
             r = random.randint(1, 2)
