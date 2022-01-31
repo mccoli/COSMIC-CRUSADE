@@ -23,7 +23,6 @@ class Button(object):
         elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
             self.on_release(event)
 
-    # ERROR the mouses movement is an event, not just the click itself
     def on_click(self, event):
         if self.rect.collidepoint(event.pos):
             self.clicked = True
