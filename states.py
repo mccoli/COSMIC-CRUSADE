@@ -6,10 +6,12 @@ class States(object):
         self.next = None
         self.quit = False
         self.previous = None
-        self.player_selected = 0
 
     def switch_state(self):
         self.done = True
+
+    def quit_game(self):
+        self.quit = True
 
 # stuff every state uses
 def draw_text(text, text_colour, x, y, screen):
