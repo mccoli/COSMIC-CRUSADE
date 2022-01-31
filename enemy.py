@@ -71,11 +71,13 @@ class EnemyShip(Spaceship1):
 
     def ai(self):
         if self.alive:
+            # makes enemies move around and stop randomly
             if self.idling == False and random.randint(1, 50) == 1:
                 self.idling = True
                 self.idling_counter = 50
                 self.moving_up = False
                 self.moving_down = False
+            # if the player collides with a rect in front of them, they will shoot
             for player in world.player_group:
                 if self.vision.colliderect(player.rect):
                     self.shoot()
@@ -103,6 +105,7 @@ class EnemyShip(Spaceship1):
 
 class EnemyLaser(PlayerLaser):
     def update(self):
+        # scroll
         self.rect.x -= self.speed - world.screen_scroll
 
         # delete if off screen
