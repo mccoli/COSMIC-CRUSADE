@@ -211,10 +211,11 @@ class Spaceship2(Spaceship1):
 
         return world.screen_scroll
 
-    def score(self, kills):
+    def total_score(self):
+        # counts dead enemies within player 1's zone
         for enemy in world.enemy_group_lower:
             if not enemy.alive:
-                self.score += kills
+                self.score += 1
         return self.score
 
 class PlayerLaser(pygame.sprite.Sprite):
