@@ -31,9 +31,10 @@ class StartMenu(States):
         self.exit_button.draw(screen)
 
     def get_event(self, event):
+        # when clicked, trigger command
         self.start_button.get_event(event)
         self.controls_button.get_event(event)
         self.exit_button.get_event(event)
 
-    def update(self, screen, dt):
+    def update(self, screen, dt, keys):
         self.draw(screen)
