@@ -1,6 +1,5 @@
 import pygame
 import random
-import superclass_states
 
 pygame.init()
 
@@ -72,7 +71,7 @@ go_back_img = pygame.image.load('img/icons/go_back.png').convert_alpha()
 # laser
 laser_img = pygame.image.load('img/objects/laser.png').convert_alpha()
 # missile
-missile_img = pygame.image.load('img/missile/missile0.png').convert_alpha()
+missile_img = pygame.image.load('img/objects/missile.png').convert_alpha()
 # pick up orbs
 health_orb_img = pygame.image.load('img/objects/health_orb.png').convert_alpha()
 powerup_orb_img = pygame.image.load('img/objects/powerup_orb.png').convert_alpha()
@@ -362,14 +361,7 @@ class Missile(pygame.sprite.Sprite):
     def __init__(self, x, y, scale):
         pygame.sprite.Sprite.__init__(self)
         self.speed = 7
-        self.images = []
-        # missile animation
-        for num in range(2):
-            img = pygame.image.load(f'img/missile/missile{num}.png').convert_alpha()
-            img = pygame.transform.scale(img, (int(img.get_width() * scale), int(img.get_height() * scale)))
-            self.images.append(img)
-        self.frame_index = 0
-        self.image = self.images[self.frame_index]
+        self.image = missile_img
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
         self.counter = 0
@@ -377,19 +369,6 @@ class Missile(pygame.sprite.Sprite):
     def update(self):
         # move missile
         self.rect.x += self.speed + screen_scroll
-
-        # run animation
-        animation_speed = 6
-        self.counter += 1
-
-        if self.counter >= animation_speed:
-            self.counter = 0
-            self.frame_index += 1
-
-            if self.frame_index >= len(self.images):
-                self.frame_index = 0
-
-        self.image = self.images[self.frame_index]
 
         # delete if off screen
         if self.rect.right > SCREEN_WIDTH:
