@@ -1,5 +1,6 @@
 import pygame
 import random
+import superclass_states
 
 pygame.init()
 
@@ -26,19 +27,19 @@ clock = pygame.time.Clock()
 FPS = 60
 
 # define colours
-BG = (28, 8, 89)
-RED = (255, 0, 0)
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
-GREEN = (0, 255, 0)
-
-# define font
-font = pygame.font.Font('img/Heytext.ttf', 30)
-
-# draw text
-def draw_text(text, font, text_colour, x, y):
-    img = font.render(text, True, text_colour)
-    screen.blit(img, (x, y))
+# BG = (28, 8, 89)
+# RED = (255, 0, 0)
+# BLACK = (0, 0, 0)
+# WHITE = (255, 255, 255)
+# GREEN = (0, 255, 0)
+#
+# # define font
+# font = pygame.font.Font('img/Heytext.ttf', 30)
+#
+# # draw text
+# def draw_text(text, font, text_colour, x, y):
+#     img = font.render(text, True, text_colour)
+#     screen.blit(img, (x, y))
 
 # reset game
 def restart_game():
@@ -67,6 +68,7 @@ healer_select_img = pygame.image.load('img/icons/healer_select.png').convert_alp
 rogue_select_img = pygame.image.load('img/icons/rogue_select.png').convert_alpha()
 warrior_select_img = pygame.image.load('img/icons/oriel_select.png').convert_alpha()
 mage_select_img = pygame.image.load('img/icons/zinta_select.png').convert_alpha()
+go_back_img = pygame.image.load('img/icons/go_back.png').convert_alpha()
 # laser
 laser_img = pygame.image.load('img/objects/laser.png').convert_alpha()
 # missile
@@ -587,6 +589,7 @@ healer_select = Button(5, 240, healer_select_img, 1)
 rogue_select = Button(205, 240, rogue_select_img, 1)
 warrior_select = Button(405, 240, warrior_select_img, 1)
 mage_select = Button(605, 240, mage_select_img, 1)
+go_back = Button(105, 40, go_back_img, 1)
 
 # create sprite groups
 player_group = pygame.sprite.Group()
@@ -609,6 +612,7 @@ death_record_lower = 0
 cosmos = Cosmos()
 
 running = True
+warrior_screen = False
 
 while running:
     clock.tick(FPS)
@@ -621,15 +625,15 @@ while running:
         if exit_button.draw(screen):
             running = False
         if start_button.draw(screen):
-            print('start')
             main_menu = False
             screen.blit(player1_select_img, (0, 0))
-            print('start')
-            if warrior_select.draw(screen):
-                print('warrior')
-                main_menu = False
-                screen.blit(p1_select_warrior_img, (0, 0))
-                print('warrior')
+        if warrior_select.draw(screen):
+            warrior_screen = True
+            main_menu = False
+            screen.blit(p1_select_warrior_img, (0, 0))
+            if go_back.draw(screen) and warrior_screen == True:
+                main_menu = True
+                warrior_screen = False
         elif healer_select.draw(screen):
             pass
         elif rogue_select.draw(screen):
